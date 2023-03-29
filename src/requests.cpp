@@ -113,16 +113,17 @@ std::array<unsigned char, calculate_size(RequestType::New)> create_new_order_req
     return msg;
 }
 
-std::string toBase(std::vector<unsigned char> & number, int base)
+std::string toBase(const std::vector<unsigned char> & number, int base)
 {
     const char * base_symbols = "0123456789ABCDEFGHIJKLMNOPQRASUVWXYZ";
 
-    std::reverse(number.begin(), number.end());
+    std::vector<unsigned char> numberCopy = number;
+    std::reverse(numberCopy.begin(), numberCopy.end());
 
     std::string result = "";
     long long num = 0;
 
-    for (const unsigned char el : number) {
+    for (const unsigned char el : numberCopy) {
         num = 256 * num + el;
     }
 
