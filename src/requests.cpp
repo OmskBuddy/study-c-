@@ -1,5 +1,10 @@
 #include "requests.h"
 
+#include <iostream>
+#include <sstream>
+#include <vector>
+#include <map>
+
 namespace {
 
 void encode_new_order_opt_fields(unsigned char * bitfield_start,
@@ -34,7 +39,7 @@ unsigned char * add_request_header(unsigned char * start, unsigned length, const
     start = encode(start, static_cast<uint16_t>(length));
     start = encode(start, encode_request_type(type));
     *start++ = 0;
-    return encode(start, static_cast<uint32_t>(seq_no));
+    return encode(start, seq_no);
 }
 
 char convert_side(const Side side)
@@ -109,27 +114,112 @@ std::array<unsigned char, calculate_size(RequestType::New)> create_new_order_req
     return msg;
 }
 
-ExecutionDetails decode_order_execution(const std::vector<unsigned char> & /*message*/)
+std::string toBase(std::vector<unsigned char>& number, int base)
 {
+    const char * base_symbols = "0123456789ABCDEFGHIJKLMNOPQRASUVWXYZ";
+
+    std::reverse(number.begin(), number.end());
+
+    std::string result = "";
+    long long num = 0;
+
+    for (unsigned char el : number) {
+        num = 256 * num + el;
+    }
+
+    while (num != 0) {
+        result += base_symbols[num % base];
+        num /= base;
+    }
+
+    std::reverse(result.begin(), result.end());
+    return result;
+}
+
+std::string getID(const std::vector<unsigned char> & message, int start, int len, int base = 10)
+{
+    std::vector<unsigned char> help(message.begin() + start, message.begin() + start + len);
+    return toBase(help, base);
+}
+
+std::string trimZeroes(const std::string & str)
+{
+    std::string result = "";
+    int i = 0;
+
+    while (str[i] != '\0') {
+        result += str[i++];
+    }
+
+    return result;
+}
+
+ExecutionDetails decode_order_execution(const std::vector<unsigned char> & message)
+{
+    std::vector<unsigned char> optional_fields = request_optional_fields_for_message(ResponseType::OrderExecution);
     ExecutionDetails exec_details;
-    // fill exec_details fields
-    //   exec_details.cl_ord_id.assign(char_ptr, length);
-    // or
-    //   exec_details.cl_ord_id = std::string{char_ptr, length};
-    // ...
-    //   exec_details.filled_volume = x;
-    // ...
+
+#define char_ptr(x) reinterpret_cast<const char *>(&message[x])
+
+    exec_details.cl_ord_id = trimZeroes(std::string{char_ptr(18), 20});
+    exec_details.exec_id = trimZeroes(getID(message, 38, 8, 36));
+    exec_details.filled_volume = atof(getID(message, 46, 4).c_str());
+    exec_details.price = atof(getID(message, 50, 8).c_str()) / 10000;
+    exec_details.active_volume = atof(getID(message, 58, 4).c_str());
+    exec_details.liquidity_indicator = std::string{char_ptr(62), 1} == "A" ? LiquidityIndicator::Added : LiquidityIndicator::Removed;
+
+    int num_of_bitfields = atoi(getID(message, 69, 1).c_str());
+    std::vector<unsigned char> bitfields(message.begin() + 70, message.begin() + 70 + num_of_bitfields);
+
+    exec_details.symbol = trimZeroes(std::string{char_ptr(70 + num_of_bitfields), 8});
+    exec_details.last_mkt = trimZeroes(std::string{char_ptr(78 + num_of_bitfields), 4});
+    exec_details.fee_code = trimZeroes(std::string{char_ptr(82 + num_of_bitfields), 2});
+
     return exec_details;
+
+#undef char_ptr
 }
 
-RestatementDetails decode_order_restatement(const std::vector<unsigned char> & /*message*/)
+std::map<std::string, RestatementReason> restReasons = {
+        {"R", RestatementReason::Reroute},
+        {"X", RestatementReason::LockedInCross},
+        {"W", RestatementReason::Wash},
+        {"L", RestatementReason::Reload},
+        {"Q", RestatementReason::LiquidityUpdated}
+};
+
+RestatementDetails decode_order_restatement(const std::vector<unsigned char> & message)
 {
+    std::vector<unsigned char> optional_fields = request_optional_fields_for_message(ResponseType::OrderRestatement);
     RestatementDetails restatement_details;
-    // ...
+
+#define char_ptr(x) reinterpret_cast<const char *>(&message[x])
+
+    restatement_details.cl_ord_id = trimZeroes(std::string{char_ptr(18), 20});
+    restatement_details.reason = restReasons[std::string{char_ptr(46), 1}];
+
+    int num_of_bitfields = atoi(getID(message, 48, 1).c_str());
+
+    restatement_details.active_volume = atof(getID(message, 49 + num_of_bitfields, 4).c_str());
+    restatement_details.secondary_order_id = trimZeroes(getID(message, 53 + num_of_bitfields, 8, 36).c_str());
+
     return restatement_details;
+
+#undef char_ptr
 }
 
-std::vector<unsigned char> request_optional_fields_for_message(const ResponseType)
+std::vector<unsigned char> request_optional_fields_for_message(const ResponseType type)
 {
-    return {};
+    std::vector<unsigned char> result;
+
+    switch (type) {
+    case ResponseType::OrderExecution:
+        result = {0, 1, 0, 0, 0, 0, 128, 1};
+        break;
+    case ResponseType::OrderRestatement:
+        result = {0, 0, 0, 0, 2, 1};
+        break;
+    }
+
+    return result;
 }
