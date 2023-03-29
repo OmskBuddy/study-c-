@@ -1,8 +1,8 @@
 #include "requests.h"
 
 #include <iostream>
-#include <vector>
 #include <map>
+#include <vector>
 
 namespace {
 
@@ -113,7 +113,7 @@ std::array<unsigned char, calculate_size(RequestType::New)> create_new_order_req
     return msg;
 }
 
-std::string toBase(std::vector<unsigned char>& number, int base)
+std::string toBase(std::vector<unsigned char> & number, int base)
 {
     const char * base_symbols = "0123456789ABCDEFGHIJKLMNOPQRASUVWXYZ";
 
@@ -122,8 +122,7 @@ std::string toBase(std::vector<unsigned char>& number, int base)
     std::string result = "";
     long long num = 0;
 
-    for (unsigned char el : number)
-    {
+    for (unsigned char el : number) {
         num = 256 * num + el;
     }
 
@@ -185,8 +184,7 @@ std::map<std::string, RestatementReason> restReasons = {
         {"X", RestatementReason::LockedInCross},
         {"W", RestatementReason::Wash},
         {"L", RestatementReason::Reload},
-        {"Q", RestatementReason::LiquidityUpdated}
-};
+        {"Q", RestatementReason::LiquidityUpdated}};
 
 RestatementDetails decode_order_restatement(const std::vector<unsigned char> & message)
 {
