@@ -122,7 +122,7 @@ std::string toBase(std::vector<unsigned char> & number, int base)
     std::string result = "";
     long long num = 0;
 
-    for (unsigned char el : number) {
+    for (const unsigned char el : number) {
         num = 256 * num + el;
     }
 
