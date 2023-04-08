@@ -163,7 +163,6 @@ struct RestatementDetails
 
 RestatementDetails decode_order_restatement(const std::vector<unsigned char> & message);
 
-
 inline void my_decode(unsigned char * start, int32_t * value)
 {
     int32_t temp = 0;
