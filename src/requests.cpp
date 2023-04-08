@@ -1,5 +1,4 @@
 #include "requests.h"
-
 #include <iostream>
 #include <map>
 #include <vector>
