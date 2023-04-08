@@ -113,7 +113,8 @@ std::array<unsigned char, calculate_size(RequestType::New)> create_new_order_req
     return msg;
 }
 
-void decode_text(unsigned char * start, const size_t size, std::string * str) {
+void decode_text(unsigned char * start, const size_t size, std::string * str)
+{
     my_decode(start, size, str);
 }
 
@@ -164,8 +165,12 @@ void decode_reason(unsigned char * start, RestatementReason * value)
 
 #define FIELD(name, type, offset) decode_##type(start + offset, &ORDER.name);
 #define VAR_FIELD(name, type, offset, size) decode_##type(start + offset, size, &ORDER.name);
-#define OPT_VAR_FIELD(name, type, size) decode_##type(last_opt_field_offset, size, &ORDER.name); last_opt_field_offset += size;
-#define OPT_FIELD(name, type) decode_##type(last_opt_field_offset, &ORDER.name); last_opt_field_offset += type##_size;
+#define OPT_VAR_FIELD(name, type, size) \
+    decode_##type(last_opt_field_offset, size, &ORDER.name); \
+    last_opt_field_offset += size;
+#define OPT_FIELD(name, type) \
+    decode_##type(last_opt_field_offset, &ORDER.name); \
+    last_opt_field_offset += type##_size;
 
 ExecutionDetails decode_order_execution(const std::vector<unsigned char> & message)
 {
@@ -213,14 +218,14 @@ std::vector<unsigned char> request_optional_fields_for_message(const ResponseTyp
     switch (type) {
     case ResponseType::OrderExecution:
         result.resize(exec_order_bitfield_num());
-#define FIELD(name, bitfield_num, bit)                    \
-        set_opt_field_bit(&result[0], bitfield_num, bit);
+#define FIELD(name, bitfield_num, bit) \
+    set_opt_field_bit(&result[0], bitfield_num, bit);
 #include "exec_order_opt_fields.inl"
         break;
     case ResponseType::OrderRestatement:
         result.resize(rest_order_bitfield_num());
-#define FIELD(name, bitfield_num, bit)                    \
-        set_opt_field_bit(&result[0], bitfield_num, bit);
+#define FIELD(name, bitfield_num, bit) \
+    set_opt_field_bit(&result[0], bitfield_num, bit);
 #include "rest_order_opt_fields.inl"
         break;
     }
