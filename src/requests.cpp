@@ -113,98 +113,97 @@ std::array<unsigned char, calculate_size(RequestType::New)> create_new_order_req
     return msg;
 }
 
-std::string toBase(const std::vector<unsigned char> & number, int base)
+void decode_text(unsigned char * start, const size_t size, std::string * str) {
+    my_decode(start, size, str);
+}
+
+std::string convert_to_base(int64_t value, int radix)
 {
     const char * base_symbols = "0123456789ABCDEFGHIJKLMNOPQRASUVWXYZ";
-
-    std::vector<unsigned char> numberCopy = number;
-    std::reverse(numberCopy.begin(), numberCopy.end());
-
     std::string result = "";
-    long long num = 0;
 
-    for (const unsigned char el : numberCopy) {
-        num = 256 * num + el;
-    }
-
-    while (num != 0) {
-        result += base_symbols[num % base];
-        num /= base;
+    while (value != 0) {
+        result += base_symbols[value % radix];
+        value /= radix;
     }
 
     std::reverse(result.begin(), result.end());
     return result;
 }
 
-std::string getID(const std::vector<unsigned char> & message, int start, int len, int base = 10)
+void decode_text36(unsigned char * start, std::string * str)
 {
-    std::vector<unsigned char> help(message.begin() + start, message.begin() + start + len);
-    return toBase(help, base);
+    int64_t temp = 0;
+    my_decode(start, &temp);
+    *str = convert_to_base(temp, 36);
 }
 
-std::string trimZeroes(const std::string & str)
+void decode_price(unsigned char * start, double * value)
 {
-    std::string result = "";
-    int i = 0;
-
-    while (str[i] != '\0') {
-        result += str[i++];
-    }
-
-    return result;
+    int64_t temp;
+    my_decode(start, &temp);
+    *value = static_cast<double>(temp) / 10000;
 }
+
+void decode_binary4(unsigned char * start, double * value)
+{
+    int32_t temp;
+    my_decode(start, &temp);
+    *value = static_cast<double>(temp);
+}
+
+void decode_liquidity_indicator(unsigned char * start, LiquidityIndicator * value)
+{
+    my_decode(start, value);
+}
+
+void decode_reason(unsigned char * start, RestatementReason * value)
+{
+    my_decode(start, value);
+}
+
+#define FIELD(name, type, offset) decode_##type(start + offset, &ORDER.name);
+#define VAR_FIELD(name, type, offset, size) decode_##type(start + offset, size, &ORDER.name);
+#define OPT_VAR_FIELD(name, type, size) decode_##type(last_opt_field_offset, size, &ORDER.name); last_opt_field_offset += size;
+#define OPT_FIELD(name, type) decode_##type(last_opt_field_offset, &ORDER.name); last_opt_field_offset += type##_size;
 
 ExecutionDetails decode_order_execution(const std::vector<unsigned char> & message)
 {
-    std::vector<unsigned char> optional_fields = request_optional_fields_for_message(ResponseType::OrderExecution);
+#define BITFIELD_OFFSET 70
+#define ORDER exec_details
+
     ExecutionDetails exec_details;
+    unsigned char * start = const_cast<unsigned char *>(&message[0]);
+    unsigned char * last_opt_field_offset = start + BITFIELD_OFFSET + exec_order_bitfield_num();
 
-#define char_ptr(x) reinterpret_cast<const char *>(&message[x])
-
-    exec_details.cl_ord_id = trimZeroes(std::string{char_ptr(18), 20});
-    exec_details.exec_id = trimZeroes(getID(message, 38, 8, 36));
-    exec_details.filled_volume = atof(getID(message, 46, 4).c_str());
-    exec_details.price = atof(getID(message, 50, 8).c_str()) / 10000;
-    exec_details.active_volume = atof(getID(message, 58, 4).c_str());
-    exec_details.liquidity_indicator = std::string{char_ptr(62), 1} == "A" ? LiquidityIndicator::Added : LiquidityIndicator::Removed;
-
-    int num_of_bitfields = atoi(getID(message, 69, 1).c_str());
-    std::vector<unsigned char> bitfields(message.begin() + 70, message.begin() + 70 + num_of_bitfields);
-
-    exec_details.symbol = trimZeroes(std::string{char_ptr(70 + num_of_bitfields), 8});
-    exec_details.last_mkt = trimZeroes(std::string{char_ptr(78 + num_of_bitfields), 4});
-    exec_details.fee_code = trimZeroes(std::string{char_ptr(82 + num_of_bitfields), 2});
+#include "exec_order_fields.inl"
 
     return exec_details;
 
-#undef char_ptr
+#undef BITFIELD_OFFSET
+#undef ORDER
 }
-
-std::map<std::string, RestatementReason> restReasons = {
-        {"R", RestatementReason::Reroute},
-        {"X", RestatementReason::LockedInCross},
-        {"W", RestatementReason::Wash},
-        {"L", RestatementReason::Reload},
-        {"Q", RestatementReason::LiquidityUpdated}};
 
 RestatementDetails decode_order_restatement(const std::vector<unsigned char> & message)
 {
-    std::vector<unsigned char> optional_fields = request_optional_fields_for_message(ResponseType::OrderRestatement);
+#define BITFIELD_OFFSET 49
+#define ORDER restatement_details
+
     RestatementDetails restatement_details;
+    unsigned char * start = const_cast<unsigned char *>(&message[0]);
+    unsigned char * last_opt_field_offset = start + BITFIELD_OFFSET + rest_order_bitfield_num();
 
-#define char_ptr(x) reinterpret_cast<const char *>(&message[x])
+#include "rest_order_fields.inl"
 
-    restatement_details.cl_ord_id = trimZeroes(std::string{char_ptr(18), 20});
-    restatement_details.reason = restReasons[std::string{char_ptr(46), 1}];
-
-    int num_of_bitfields = atoi(getID(message, 48, 1).c_str());
-
-    restatement_details.active_volume = atof(getID(message, 49 + num_of_bitfields, 4).c_str());
-    restatement_details.secondary_order_id = trimZeroes(getID(message, 53 + num_of_bitfields, 8, 36).c_str());
+#undef FIELD
+#undef VAR_FIELD
+#undef OPT_FIELD
+#undef OPT_VAR_FIELD
 
     return restatement_details;
 
-#undef char_ptr
+#undef BITFIELD_OFFSET
+#undef ORDER
 }
 
 std::vector<unsigned char> request_optional_fields_for_message(const ResponseType type)
@@ -213,12 +212,18 @@ std::vector<unsigned char> request_optional_fields_for_message(const ResponseTyp
 
     switch (type) {
     case ResponseType::OrderExecution:
-        result = {0, 1, 0, 0, 0, 0, 128, 1};
+        result.resize(exec_order_bitfield_num());
+#define FIELD(name, bitfield_num, bit)                    \
+        set_opt_field_bit(&result[0], bitfield_num, bit);
+#include "exec_order_opt_fields.inl"
         break;
     case ResponseType::OrderRestatement:
-        result = {0, 0, 0, 0, 2, 1};
+        result.resize(rest_order_bitfield_num());
+#define FIELD(name, bitfield_num, bit)                    \
+        set_opt_field_bit(&result[0], bitfield_num, bit);
+#include "rest_order_opt_fields.inl"
         break;
     }
-
+#undef FIELD
     return result;
 }

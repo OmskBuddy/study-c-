@@ -43,24 +43,22 @@ inline unsigned char * encode_price(unsigned char * start, const double value)
 inline constexpr size_t char_size = 1;
 inline constexpr size_t binary4_size = 4;
 inline constexpr size_t price_size = 8;
+inline constexpr size_t text36_size = 8;
 
 #define FIELD(name, protocol_type, ctype)                                                \
     inline unsigned char * encode_field_##name(unsigned char * start, const ctype value) \
     {                                                                                    \
         return encode_##protocol_type(start, value);                                     \
     }
-
 #define VAR_FIELD(name, size)                                                                  \
     inline unsigned char * encode_field_##name(unsigned char * start, const std::string & str) \
     {                                                                                          \
         return encode_text(start, str, size);                                                  \
     }
-
 #include "fields.inl"
 
 #define FIELD(name, protocol_type, _) inline constexpr size_t name##_field_size = protocol_type##_size;
 #define VAR_FIELD(name, size) inline constexpr size_t name##_field_size = size;
-
 #include "fields.inl"
 
 inline void set_opt_field_bit(unsigned char * bitfield_start, unsigned bitfield_num, unsigned bit)

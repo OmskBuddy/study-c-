@@ -90,7 +90,7 @@ target_link_options(boe_order_execution_lib PUBLIC ${LINK_OPTS})
 setup_warnings(boe_order_execution_lib)
 
 # Main is separate
-add_executable(boe_order_execution ${PROJECT_SOURCE_DIR}/src/main.cpp)
+add_executable(boe_order_execution ${PROJECT_SOURCE_DIR}/src/main.cpp include/exec_order_fields.inl include/exec_order_opt_fields.inl "include/rest_order_fields.inl" include/rest_order_opt_fields.inl)
 target_compile_options(boe_order_execution PRIVATE ${COMPILE_OPTS})
 target_link_options(boe_order_execution PRIVATE ${LINK_OPTS})
 setup_warnings(boe_order_execution)

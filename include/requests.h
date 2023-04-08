@@ -26,6 +26,22 @@ constexpr size_t new_order_bitfield_num()
     });
 }
 
+constexpr size_t exec_order_bitfield_num()
+{
+    return std::max({0
+#define FIELD(_, n, __) , n
+#include "exec_order_opt_fields.inl"
+    });
+}
+
+constexpr size_t rest_order_bitfield_num()
+{
+    return std::max({0
+#define FIELD(_, n, __) , n
+#include "rest_order_opt_fields.inl"
+    });
+}
+
 constexpr size_t new_order_opt_fields_size()
 {
     return 0
@@ -105,7 +121,8 @@ std::vector<unsigned char> request_optional_fields_for_message(ResponseType);
 enum class LiquidityIndicator
 {
     Added,
-    Removed
+    Removed,
+    Unknown
 };
 
 struct ExecutionDetails
@@ -145,3 +162,71 @@ struct RestatementDetails
 };
 
 RestatementDetails decode_order_restatement(const std::vector<unsigned char> & message);
+
+
+inline void my_decode(unsigned char * start, int32_t * value)
+{
+    int32_t temp = 0;
+    for (int i = 0; i < 4; i++) {
+        temp += (static_cast<int32_t>(*start++) << (i * 8));
+    }
+    *value = temp;
+}
+
+inline void my_decode(unsigned char * start, int64_t * value)
+{
+    int64_t temp = 0;
+    for (int i = 0; i < 8; i++) {
+        temp += (static_cast<int64_t>(*start++) << i * 8);
+    }
+    *value = temp;
+}
+
+inline LiquidityIndicator convert_liquidity_indicator(const char value)
+{
+    switch (value) {
+    case 'A':
+        return LiquidityIndicator::Added;
+    case 'R':
+        return LiquidityIndicator::Removed;
+    default:
+        return LiquidityIndicator::Unknown;
+    }
+}
+
+inline void my_decode(unsigned char * start, LiquidityIndicator * value)
+{
+    *value = convert_liquidity_indicator(*start);
+}
+
+inline RestatementReason convert_restatement_reason(const char value)
+{
+    switch (value) {
+    case 'R':
+        return RestatementReason::Reroute;
+    case 'X':
+        return RestatementReason::LockedInCross;
+    case 'W':
+        return RestatementReason::Wash;
+    case 'L':
+        return RestatementReason::Reload;
+    case 'Q':
+        return RestatementReason::LiquidityUpdated;
+    default:
+        return RestatementReason::Unknown;
+    }
+}
+
+inline void my_decode(unsigned char * start, RestatementReason * value)
+{
+    *value = convert_restatement_reason(*start);
+}
+
+inline void my_decode(unsigned char * start, const size_t field_size, std::string * str)
+{
+    size_t i = 0;
+    while (i < field_size && *(start + i) != '\0') {
+        i++;
+    }
+    *str = std::string(start, start + i);
+}
