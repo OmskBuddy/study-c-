@@ -165,10 +165,10 @@ void decode_reason(unsigned char * start, RestatementReason * value)
 
 #define FIELD(name, type, offset) decode_##type(start + offset, &ORDER.name);
 #define VAR_FIELD(name, type, offset, size) decode_##type(start + offset, size, &ORDER.name);
-#define OPT_VAR_FIELD(name, type, size) \
+#define OPT_VAR_FIELD(name, type, size)                      \
     decode_##type(last_opt_field_offset, size, &ORDER.name); \
     last_opt_field_offset += size;
-#define OPT_FIELD(name, type) \
+#define OPT_FIELD(name, type)                          \
     decode_##type(last_opt_field_offset, &ORDER.name); \
     last_opt_field_offset += type##_size;
 
