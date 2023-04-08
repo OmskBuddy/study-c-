@@ -1,5 +1,7 @@
 #include "requests.h"
 
+#include <vector>
+
 namespace {
 
 void encode_new_order_opt_fields(unsigned char * bitfield_start,
@@ -34,7 +36,7 @@ unsigned char * add_request_header(unsigned char * start, unsigned length, const
     start = encode(start, static_cast<uint16_t>(length));
     start = encode(start, encode_request_type(type));
     *start++ = 0;
-    return encode(start, static_cast<uint32_t>(seq_no));
+    return encode(start, seq_no);
 }
 
 char convert_side(const Side side)
@@ -109,27 +111,122 @@ std::array<unsigned char, calculate_size(RequestType::New)> create_new_order_req
     return msg;
 }
 
-ExecutionDetails decode_order_execution(const std::vector<unsigned char> & /*message*/)
+void decode_text(unsigned const char * start, const size_t size, std::string & str)
 {
+    decode(start, size, str);
+}
+
+std::string convert_to_base(int64_t value, int radix)
+{
+    const char * base_symbols = "0123456789ABCDEFGHIJKLMNOPQRASUVWXYZ";
+    std::string result = "";
+
+    while (value != 0) {
+        result += base_symbols[value % radix];
+        value /= radix;
+    }
+
+    std::reverse(result.begin(), result.end());
+    return result;
+}
+
+void decode_text36(unsigned const char * start, std::string & str)
+{
+    int64_t temp = 0;
+    decode(start, temp);
+    str = convert_to_base(temp, 36);
+}
+
+void decode_price(unsigned const char * start, double & value)
+{
+    int64_t temp;
+    decode(start, temp);
+    value = static_cast<double>(temp) / 10000;
+}
+
+void decode_binary4(unsigned const char * start, double & value)
+{
+    int32_t temp;
+    decode(start, temp);
+    value = static_cast<uint32_t>(temp);
+}
+
+void decode_liquidity_indicator(unsigned const char * start, LiquidityIndicator & value)
+{
+    value = convert_liquidity_indicator(*start);
+}
+
+void decode_reason(unsigned const char * start, RestatementReason & value)
+{
+    value = convert_restatement_reason(*start);
+}
+
+#define FIELD(name, type, offset) decode_##type(start + offset, ORDER.name);
+#define VAR_FIELD(name, type, offset, size) decode_##type(start + offset, size, ORDER.name);
+#define OPT_VAR_FIELD(name, type, size)                     \
+    decode_##type(last_opt_field_offset, size, ORDER.name); \
+    last_opt_field_offset += size;
+#define OPT_FIELD(name, type)                         \
+    decode_##type(last_opt_field_offset, ORDER.name); \
+    last_opt_field_offset += type##_size;
+
+ExecutionDetails decode_order_execution(const std::vector<unsigned char> & message)
+{
+#define BITFIELD_OFFSET 70
+#define ORDER exec_details
+
     ExecutionDetails exec_details;
-    // fill exec_details fields
-    //   exec_details.cl_ord_id.assign(char_ptr, length);
-    // or
-    //   exec_details.cl_ord_id = std::string{char_ptr, length};
-    // ...
-    //   exec_details.filled_volume = x;
-    // ...
+    unsigned const char * start = &message[0];
+    unsigned const char * last_opt_field_offset = start + BITFIELD_OFFSET + exec_order_bitfield_num();
+
+#include "exec_order_fields.inl"
+
     return exec_details;
+
+#undef BITFIELD_OFFSET
+#undef ORDER
 }
 
-RestatementDetails decode_order_restatement(const std::vector<unsigned char> & /*message*/)
+RestatementDetails decode_order_restatement(const std::vector<unsigned char> & message)
 {
+#define BITFIELD_OFFSET 49
+#define ORDER restatement_details
+
     RestatementDetails restatement_details;
-    // ...
+    unsigned const char * start = &message[0];
+    unsigned const char * last_opt_field_offset = start + BITFIELD_OFFSET + rest_order_bitfield_num();
+
+#include "rest_order_fields.inl"
+
+#undef FIELD
+#undef VAR_FIELD
+#undef OPT_FIELD
+#undef OPT_VAR_FIELD
+
     return restatement_details;
+
+#undef BITFIELD_OFFSET
+#undef ORDER
 }
 
-std::vector<unsigned char> request_optional_fields_for_message(const ResponseType)
+std::vector<unsigned char> request_optional_fields_for_message(const ResponseType type)
 {
-    return {};
+    std::vector<unsigned char> result;
+
+    switch (type) {
+    case ResponseType::OrderExecution:
+        result.resize(exec_order_bitfield_num());
+#define FIELD(name, bitfield_num, bit) \
+    set_opt_field_bit(&result[0], bitfield_num, bit);
+#include "exec_order_opt_fields.inl"
+        break;
+    case ResponseType::OrderRestatement:
+        result.resize(rest_order_bitfield_num());
+#define FIELD(name, bitfield_num, bit) \
+    set_opt_field_bit(&result[0], bitfield_num, bit);
+#include "rest_order_opt_fields.inl"
+        break;
+    }
+#undef FIELD
+    return result;
 }
