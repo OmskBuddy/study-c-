@@ -163,22 +163,22 @@ struct RestatementDetails
 
 RestatementDetails decode_order_restatement(const std::vector<unsigned char> & message);
 
-inline void my_decode(unsigned char * start, int32_t * value)
+inline void decode(unsigned const char * start, int32_t & value)
 {
     int32_t temp = 0;
     for (int i = 0; i < 4; i++) {
         temp += (static_cast<int32_t>(*start++) << (i * 8));
     }
-    *value = temp;
+    value = temp;
 }
 
-inline void my_decode(unsigned char * start, int64_t * value)
+inline void decode(unsigned const char * start, int64_t & value)
 {
     int64_t temp = 0;
     for (int i = 0; i < 8; i++) {
         temp += (static_cast<int64_t>(*start++) << i * 8);
     }
-    *value = temp;
+    value = temp;
 }
 
 inline LiquidityIndicator convert_liquidity_indicator(const char value)
@@ -191,11 +191,6 @@ inline LiquidityIndicator convert_liquidity_indicator(const char value)
     default:
         return LiquidityIndicator::Unknown;
     }
-}
-
-inline void my_decode(unsigned char * start, LiquidityIndicator * value)
-{
-    *value = convert_liquidity_indicator(*start);
 }
 
 inline RestatementReason convert_restatement_reason(const char value)
@@ -216,16 +211,11 @@ inline RestatementReason convert_restatement_reason(const char value)
     }
 }
 
-inline void my_decode(unsigned char * start, RestatementReason * value)
-{
-    *value = convert_restatement_reason(*start);
-}
-
-inline void my_decode(unsigned char * start, const size_t field_size, std::string * str)
+inline void decode(unsigned const char * start, const size_t field_size, std::string & str)
 {
     size_t i = 0;
     while (i < field_size && *(start + i) != '\0') {
         i++;
     }
-    *str = std::string(start, start + i);
+    str = std::string(start, start + i);
 }

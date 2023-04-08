@@ -268,7 +268,7 @@ TEST(NewOrderTest, read_values)
 
 constexpr auto eps = 1.e-9;
 
-TEST(OrderExecutionTest, my_decode)
+TEST(OrderExecutionTest, decode)
 {
     const std::vector<unsigned char> message = {
         0xBA, 0xBA,
@@ -340,7 +340,7 @@ TEST(OrderExecutionTest, bitfields)
     }
 }
 
-TEST(OrderRestatementTest, my_decode)
+TEST(OrderRestatementTest, decode)
 {
     const std::vector<unsigned char> message = {
         0xBA, 0xBA,

@@ -1,7 +1,5 @@
 #include "requests.h"
 
-#include <iostream>
-#include <map>
 #include <vector>
 
 namespace {
@@ -113,9 +111,9 @@ std::array<unsigned char, calculate_size(RequestType::New)> create_new_order_req
     return msg;
 }
 
-void decode_text(unsigned char * start, const size_t size, std::string * str)
+void decode_text(unsigned const char * start, const size_t size, std::string & str)
 {
-    my_decode(start, size, str);
+    decode(start, size, str);
 }
 
 std::string convert_to_base(int64_t value, int radix)
@@ -132,44 +130,44 @@ std::string convert_to_base(int64_t value, int radix)
     return result;
 }
 
-void decode_text36(unsigned char * start, std::string * str)
+void decode_text36(unsigned const char * start, std::string & str)
 {
     int64_t temp = 0;
-    my_decode(start, &temp);
-    *str = convert_to_base(temp, 36);
+    decode(start, temp);
+    str = convert_to_base(temp, 36);
 }
 
-void decode_price(unsigned char * start, double * value)
+void decode_price(unsigned const char * start, double & value)
 {
     int64_t temp;
-    my_decode(start, &temp);
-    *value = static_cast<double>(temp) / 10000;
+    decode(start, temp);
+    value = static_cast<double>(temp) / 10000;
 }
 
-void decode_binary4(unsigned char * start, double * value)
+void decode_binary4(unsigned const char * start, double & value)
 {
     int32_t temp;
-    my_decode(start, &temp);
-    *value = static_cast<double>(temp);
+    decode(start, temp);
+    value = static_cast<uint32_t>(temp);
 }
 
-void decode_liquidity_indicator(unsigned char * start, LiquidityIndicator * value)
+void decode_liquidity_indicator(unsigned const char * start, LiquidityIndicator & value)
 {
-    my_decode(start, value);
+    value = convert_liquidity_indicator(*start);
 }
 
-void decode_reason(unsigned char * start, RestatementReason * value)
+void decode_reason(unsigned const char * start, RestatementReason & value)
 {
-    my_decode(start, value);
+    value = convert_restatement_reason(*start);
 }
 
-#define FIELD(name, type, offset) decode_##type(start + offset, &ORDER.name);
-#define VAR_FIELD(name, type, offset, size) decode_##type(start + offset, size, &ORDER.name);
+#define FIELD(name, type, offset) decode_##type(start + offset, ORDER.name);
+#define VAR_FIELD(name, type, offset, size) decode_##type(start + offset, size, ORDER.name);
 #define OPT_VAR_FIELD(name, type, size)                      \
-    decode_##type(last_opt_field_offset, size, &ORDER.name); \
+    decode_##type(last_opt_field_offset, size, ORDER.name); \
     last_opt_field_offset += size;
 #define OPT_FIELD(name, type)                          \
-    decode_##type(last_opt_field_offset, &ORDER.name); \
+    decode_##type(last_opt_field_offset, ORDER.name); \
     last_opt_field_offset += type##_size;
 
 ExecutionDetails decode_order_execution(const std::vector<unsigned char> & message)
@@ -178,8 +176,8 @@ ExecutionDetails decode_order_execution(const std::vector<unsigned char> & messa
 #define ORDER exec_details
 
     ExecutionDetails exec_details;
-    unsigned char * start = const_cast<unsigned char *>(&message[0]);
-    unsigned char * last_opt_field_offset = start + BITFIELD_OFFSET + exec_order_bitfield_num();
+    unsigned const char * start = &message[0];
+    unsigned const char * last_opt_field_offset = start + BITFIELD_OFFSET + exec_order_bitfield_num();
 
 #include "exec_order_fields.inl"
 
@@ -195,8 +193,8 @@ RestatementDetails decode_order_restatement(const std::vector<unsigned char> & m
 #define ORDER restatement_details
 
     RestatementDetails restatement_details;
-    unsigned char * start = const_cast<unsigned char *>(&message[0]);
-    unsigned char * last_opt_field_offset = start + BITFIELD_OFFSET + rest_order_bitfield_num();
+    unsigned const char * start = &message[0];
+    unsigned const char * last_opt_field_offset = start + BITFIELD_OFFSET + rest_order_bitfield_num();
 
 #include "rest_order_fields.inl"
 
